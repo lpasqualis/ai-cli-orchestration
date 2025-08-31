@@ -30,7 +30,8 @@ ACOR follows a modular, layered architecture that separates concerns and enables
 ```python
 @dataclass
 class AcorConfig:
-    version: int = 1
+    version: int = 1  # Configuration schema version
+    acor_version: str = None  # ACOR version that created this config
     project: ProjectConfig
     discovery: DiscoveryConfig
     environment: EnvironmentConfig
@@ -233,8 +234,9 @@ class LanguageDetector:
 @dataclass
 class ToolManifest:
     name: str
-    version: str
-    protocol_version: int
+    version: str  # Tool semantic version (e.g., "1.2.3")
+    protocol_version: int  # JSONL protocol version supported
+    min_acor_version: str = None  # Minimum ACOR version required
     inputs: List[InputSpec]
     permissions: PermissionSpec
     resources: ResourceSpec
@@ -719,6 +721,138 @@ class TraceContext:
     
     def child_span(self) -> "TraceContext":
         """Create child span context"""
+```
+
+## Versioning and Compatibility
+
+### Version Management System
+
+ACOR implements comprehensive versioning to ensure compatibility across evolving components:
+
+```python
+from typing import Tuple
+from packaging import version
+
+class VersionManager:
+    """Manages version compatibility across ACOR components"""
+    
+    def __init__(self, acor_version: str):
+        self.acor_version = version.parse(acor_version)
+        self.supported_protocols = {1}  # Set of supported protocol versions
+    
+    def check_config_version(self, config_version: int) -> bool:
+        """Verify configuration schema version compatibility"""
+        return config_version in {1}  # Currently only v1 supported
+    
+    def check_protocol_version(self, protocol_version: int) -> bool:
+        """Verify JSONL protocol version compatibility"""
+        return protocol_version in self.supported_protocols
+    
+    def check_tool_compatibility(self, manifest: ToolManifest) -> Tuple[bool, str]:
+        """Check if tool is compatible with current ACOR version"""
+        # Check protocol version
+        if not self.check_protocol_version(manifest.protocol_version):
+            return False, f"Protocol v{manifest.protocol_version} not supported"
+        
+        # Check minimum ACOR version requirement
+        if manifest.min_acor_version:
+            min_version = version.parse(manifest.min_acor_version)
+            if self.acor_version < min_version:
+                return False, f"Requires ACOR >= {manifest.min_acor_version}"
+        
+        return True, "Compatible"
+    
+    def migrate_config(self, old_config: dict, old_version: int) -> dict:
+        """Migrate configuration to current version"""
+        # Future: implement migration logic between versions
+        if old_version == 1:
+            return old_config
+        raise ValueError(f"Cannot migrate from config version {old_version}")
+```
+
+### Version Initialization
+
+When `acor init` creates a new project:
+
+```python
+def init_project(project_name: str) -> None:
+    """Initialize ACOR project with versioned artifacts"""
+    import acor
+    
+    config = {
+        "version": 1,  # Configuration schema version
+        "acor_version": acor.__version__,  # ACOR version creating this
+        "project": {
+            "name": project_name,
+            "tools_dirs": [".acor/tools/"]
+        },
+        # ... rest of config
+    }
+    
+    # Write versioned config
+    config_path = Path(".acor/config.yaml")
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(config_path, 'w') as f:
+        yaml.dump(config, f, sort_keys=False)
+    
+    # Create version info file
+    version_info = {
+        "created_at": datetime.utcnow().isoformat(),
+        "created_by": acor.__version__,
+        "schema_versions": {
+            "config": 1,
+            "protocol": 1
+        }
+    }
+    
+    with open(".acor/version.json", 'w') as f:
+        json.dump(version_info, f, indent=2)
+```
+
+### Compatibility Checking
+
+During tool execution:
+
+```python
+def validate_compatibility(tool_name: str) -> None:
+    """Validate tool compatibility before execution"""
+    version_mgr = VersionManager(acor.__version__)
+    manifest = load_manifest(tool_name)
+    
+    # Check compatibility
+    compatible, message = version_mgr.check_tool_compatibility(manifest)
+    if not compatible:
+        raise CompatibilityError(
+            f"Tool '{tool_name}' incompatible with ACOR {acor.__version__}: {message}"
+        )
+    
+    # Warn about deprecations
+    if manifest.protocol_version < version_mgr.latest_protocol_version:
+        warnings.warn(
+            f"Tool '{tool_name}' uses protocol v{manifest.protocol_version}. "
+            f"Consider updating to v{version_mgr.latest_protocol_version}"
+        )
+```
+
+### Version Information Commands
+
+```bash
+# Show version information
+acor version --detailed
+
+# Output:
+# ACOR Version: 1.0.0
+# Configuration Schema: v1
+# Supported Protocols: v1
+# Python: 3.8.10
+# Project Config: v1 (created by ACOR 1.0.0)
+
+# Validate all versions
+acor validate --check-versions
+
+# Upgrade configuration to latest version
+acor upgrade --config
 ```
 
 ## Future Enhancements

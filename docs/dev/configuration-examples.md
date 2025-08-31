@@ -1,12 +1,24 @@
 # ACOR Configuration Examples
 
+## Version Information
+
+All ACOR configuration files and tool manifests must include version information to ensure compatibility as the system evolves:
+
+- `version`: Configuration schema version (required)
+- `acor_version`: ACOR version that created this config (automatically added by `acor init`)
+
+Tool manifests additionally include:
+- `protocol_version`: JSONL protocol version the tool supports
+- `min_acor_version`: Minimum ACOR version required (optional)
+
 ## Default Configuration
 
 When you run `acor init`, it creates a `.acor/config.yaml` with sensible defaults:
 
 ```yaml
 # .acor/config.yaml
-version: 1
+version: 1                    # Configuration schema version
+acor_version: "1.0.0"        # ACOR version that created this
 project:
   name: my-project
   # Tools can be in multiple directories (searched in order)
@@ -185,6 +197,81 @@ security:
 ```
 
 Use with: `acor --config .acor/config.prod.yaml run <tool>`
+
+## Tool Manifest Examples
+
+### Basic Tool Manifest
+```yaml
+# .acor/tools/data_processor/tool.yaml
+name: data_processor
+version: "1.0.0"              # Tool semantic version
+protocol_version: 1           # JSONL protocol version supported
+entry: cli.py
+inputs:
+  - {name: input_file, type: path, required: true}
+  - {name: output_dir, type: path, required: true}
+```
+
+### Tool with Version Requirements
+```yaml
+# .acor/tools/advanced_analyzer/tool.yaml
+name: advanced_analyzer
+version: "2.1.3"
+protocol_version: 1
+min_acor_version: "1.2.0"    # Requires ACOR 1.2.0 or later
+entry: main.py
+dependencies:
+  python: ">=3.8"
+  packages:
+    - numpy>=1.20
+    - pandas>=1.3
+```
+
+### Tool Supporting Multiple Protocol Versions
+```yaml
+# .acor/tools/flexible_tool/tool.yaml
+name: flexible_tool
+version: "3.0.0"
+protocol_versions: [1, 2]     # Future: support multiple protocols
+default_protocol: 2            # Preferred protocol version
+min_acor_version: "2.0.0"
+entry: cli.js
+```
+
+## Version Migration Examples
+
+### Upgrading Configuration
+When ACOR releases a new configuration schema version:
+
+```bash
+# Check current version
+acor version --check-config
+
+# Backup current config
+cp .acor/config.yaml .acor/config.yaml.backup
+
+# Upgrade to latest schema
+acor upgrade --config
+
+# Review changes
+diff .acor/config.yaml.backup .acor/config.yaml
+```
+
+### Version Info File
+ACOR automatically creates `.acor/version.json`:
+
+```json
+{
+  "created_at": "2025-08-30T12:00:00Z",
+  "created_by": "1.0.0",
+  "schema_versions": {
+    "config": 1,
+    "protocol": 1
+  },
+  "last_updated": "2025-08-30T12:00:00Z",
+  "updated_by": "1.0.0"
+}
+```
 
 ## Tool Organization Best Practices
 

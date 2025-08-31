@@ -193,6 +193,44 @@ def emit_cancelled(reason):          _emit({"type":"cancelled","reason":reason})
 
 ---
 
+## Versioning Strategy
+
+ACOR uses semantic versioning across all components to ensure compatibility:
+
+### Version Types
+
+1. **Protocol Version** (`protocol_version`): The JSONL messaging protocol version (currently v1)
+   - Changes when message format or semantics change
+   - Tools must declare which protocol version they support
+   
+2. **Configuration Version** (`version` in `.acor/config.yaml`): The configuration schema version
+   - Ensures ACOR can correctly parse project configurations
+   - Enables migration between configuration formats
+   
+3. **Tool Version** (`version` in `tool.yaml`): Individual tool versions
+   - Follows semantic versioning (MAJOR.MINOR.PATCH)
+   - Used for dependency management and compatibility checks
+
+4. **ACOR Version**: The ACOR package/runner version itself
+   - Determines available features and supported protocol versions
+
+### Compatibility Rules
+
+- ACOR runner checks protocol version compatibility before executing tools
+- Configuration files must specify their schema version for proper parsing
+- Tools declare minimum ACOR version requirements in manifests
+- Version mismatches result in clear error messages with upgrade paths
+
+### Version Negotiation
+
+When ACOR initializes a project:
+1. Creates `.acor/config.yaml` with current configuration version
+2. Records ACOR version that created the artifacts
+3. Validates tool manifests for protocol compatibility
+4. Warns about version mismatches during `acor validate`
+
+---
+
 ## Architecture Overview
 
 ### System Components
@@ -291,7 +329,7 @@ def _entry_for(tool: str) -> Path:
 def _load_manifest(tool: str) -> dict:
     mf = REGISTRY_DIR / tool / "tool.yaml"
     if not mf.exists():
-        return {"name": tool, "version":"0.0.0", "permissions":{}, "resources":{}}
+        return {"name": tool, "version":"0.0.0", "protocol_version": 1, "permissions":{}, "resources":{}}
     import yaml
     return yaml.safe_load(mf.read_text())
 
@@ -521,7 +559,7 @@ pip install -r tools/requirements.txt
 
 ## Tool Registry & Manifest
 
-Every tool declares capabilities and constraints in `tools/registry/<tool>/tool.yaml`:
+Every tool declares capabilities and constraints in `tools/registry/<tool>/tool.yaml`. All tools and configuration files must include version information to ensure compatibility as the ACOR system evolves:
 
 ```yaml
 name: data_migrator
