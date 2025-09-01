@@ -182,3 +182,4 @@ $RECYCLE.BIN/
 
 # Project specific workspace
 ai-cli-orchestration.code-workspace
+*.local
