@@ -1,0 +1,39 @@
+# {{TOOL_TITLE}}
+
+A tool for [describe purpose here].
+
+## Usage
+
+```bash
+acor {{TOOL_NAME}} [OPTIONS] [INPUT]
+```
+
+## Options
+
+- `INPUT`: Input file or data to process
+- `-v, --verbose`: Enable verbose output
+- `-h, --help`: Show help message
+
+## Examples
+
+Basic usage:
+```bash
+acor {{TOOL_NAME}} input.txt
+```
+
+With verbose output:
+```bash
+acor {{TOOL_NAME}} -v data.json
+```
+
+## Description
+
+[Add detailed description of what this tool does]
+
+## Output
+
+[Describe the output format and structure]
+
+## Error Handling
+
+[Document common errors and how to resolve them]

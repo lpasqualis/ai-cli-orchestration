@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""
+{{TOOL_TITLE}} - ACOR tool
+
+This is a minimal ACOR tool template.
+"""
+
+import os
+import sys
+import argparse
+from acor import AcorTool
+
+# Set output mode to AI (for protocol-formatted messages)
+os.environ['ACOR_OUTPUT_MODE'] = 'ai'
+
+
+def main():
+    """Main entry point for {{TOOL_NAME}}"""
+    
+    # Set up argument parser
+    parser = argparse.ArgumentParser(
+        description='{{TOOL_TITLE}} - ACOR tool',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    
+    # Add arguments here
+    parser.add_argument(
+        'input',
+        nargs='?',
+        help='Input file or data'
+    )
+    
+    parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+    
+    # Parse arguments
+    args = parser.parse_args()
+    
+    # Use ACOR protocol for communication
+    with AcorTool("{{TOOL_NAME}}") as tool:
+        tool.progress(10, "Starting {{TOOL_NAME}}")
+        
+        # === IMPLEMENT YOUR TOOL LOGIC HERE ===
+        # This is where you add the main functionality of your tool.
+        # The example below shows basic input handling - replace it with your actual logic.
+        # 
+        # Use the AcorTool methods to communicate with the AI:
+        #   - tool.progress(percentage, message): Report progress
+        #   - tool.output(data): Send results (dict or string)
+        #   - tool.error(message, recovery): Report errors
+        #   - tool.input_needed(param, description): Request input from AI
+        #   - tool.ai_directive(action, context): Request AI action
+        
+        if args.input:
+            tool.progress(50, f"Processing {args.input}")
+            # Replace this example with your actual processing logic
+            result = {"status": "success", "input": args.input}
+        else:
+            # Handle the case when no input is provided
+            result = {"status": "ready", "message": "No input provided"}
+        
+        tool.progress(90, "Finalizing")
+        
+        # Output results
+        tool.output(result)
+        
+        # Suggestions for next steps
+        tool.suggestions([
+            "Review the output",
+            "Process additional files",
+            "Generate a report"
+        ])
+
+
+if __name__ == "__main__":
+    main()
