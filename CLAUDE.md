@@ -6,92 +6,100 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is the ACOR (AI-CLI-Orchestration-Runner) project - a generic, reusable tool that implements the AI + CLI Orchestration Pattern. It enables any project to leverage AI-augmented systems where AI agents orchestrate deterministic CLI tools through a structured JSONL streaming protocol.
 
+## Core Directives
+- KEEP IT SIMPLE, do NOT build speculatively, more is not better!
+
 ## Key Architecture Concepts
 
 ### Core Pattern
 - **AI handles intelligence**: Understanding intent, making decisions, error recovery
 - **CLI tools handle execution**: Deterministic operations, file I/O, transforms
-- **JSONL protocol**: All communication between AI and tools uses streaming JSONL messages
+- **Conversational protocol**: Markdown-based communication between AI and tools
 - **Tool discovery**: Automatic discovery from configured directories (`.acor/config.yaml`)
 
-### Project Structure (Planned)
+### Project Structure (Implemented)
 ```
 src/acor/           # Main package code
-  runner.py         # Universal tool runner (extracts from spec)
-  protocol.py       # JSONL protocol implementation
+  cli.py            # CLI interface with dynamic tool registration
+  runner.py         # Tool execution with timeout handling
+  conversation.py   # AcorTool class for Markdown protocol
   discovery.py      # Tool discovery system
   config.py         # Configuration management
-templates/          # Tool templates for Python, Bash, Node.js
+  version.py        # Version management (MAJOR.MINOR.REVISION)
+tools/              # Native/built-in tools
+  status/           # Status command
 examples/           # Example tools demonstrating patterns
+  tools/
+    file_processor/ # Example tool with all protocol features
 ```
 
 ## Development Approach
 
-### Extracting Code from Specification
-The core implementation is embedded in `docs/spec/ai-cli-orchestration-pattern.md`. Key sections to extract:
-- Universal runner: Lines 253-459 contain `tools/run.py`
-- Protocol library: Lines 172-192 contain protocol emitter
-- Example tools: Lines 644-952 contain working examples
+### MVP Implementation (Complete)
+The MVP is now implemented. Original design docs in `docs/mvp/`:
+- MVP roadmap: `docs/mvp/mvp-roadmap.md`
+- Technical design: `docs/mvp/mvp-technical-design.md`
+- Conversation protocol: `docs/mvp/conversation-protocol.md`
+- Library specification: `docs/mvp/library-spec.md`
 
 ### Configuration System
-Projects using ACOR will have `.acor/config.yaml` with:
-- `tools_dirs`: List of directories to discover tools (configurable, not just `.acor/tools/`)
-- `discovery.patterns`: File patterns for each language
-- `environment`: Timeouts, allowlists, limits
-- `security`: Permission policies
+Projects using ACOR have `.acor/config.yaml` with:
+- `version`: Protocol version (currently "1")
+- `tools_dirs`: List of directories to discover tools
+- `timeout`: Execution timeout in seconds (default: 120)
 
-### Multi-Language Support
+### Multi-Language Support (Python in MVP)
 Tools can be written in:
-- **Python**: Entry points like `cli.py`, `main.py`, `tool.py`
-- **Bash**: Entry points like `cli.sh`, `*.tool.sh`
-- **Node.js**: Entry points like `cli.js`, `tool.js`
+- **Python**: Entry points like `cli.py`, `main.py`, `tool.py` (Implemented)
+- **Bash**: Entry points like `cli.sh`, `*.tool.sh` (Future)
+- **Node.js**: Entry points like `cli.js`, `tool.js` (Future)
 
-## Key Commands (To Be Implemented)
+## Key Commands (Implemented)
 
 ```bash
-# Initialize project with ACOR
-acor init
+# Run a tool (tools are direct commands)
+acor <tool_name> [args]
 
-# List discovered tools
-acor list
+# Show status and configuration
+acor status
 
-# Run a tool
-acor run <tool> [args]
+# Show version
+acor --version
 
-# Explain system to AI agents
-acor explain --format markdown
-
-# Validate tool manifests
-acor validate
+# List all available tools
+acor --help
 ```
 
-## Protocol Message Types
+## Protocol Message Types (Markdown-based)
 
-Tools emit these JSONL message types:
-- `start`: Tool execution beginning
-- `progress`: Percentage complete with message
-- `heartbeat`: Keep-alive signal (required every 30s)
-- `action_required`: Request AI decision
-- `result`: Final success result
-- `error`: Error with code and recovery hints
-- `cancelled`: Cancellation acknowledgment
+Tools emit these Markdown message types:
+- `## Status`: Tool execution state (Ready, Working, Complete, Failed)
+- `## Progress`: Percentage complete with message
+- `## Output`: Results and data produced
+- `## Error`: Problems with recovery guidance
+- `## Input Needed`: Request required parameters from AI
+- `## AI Directive`: Request specific AI action
+- `## Suggestions`: Optional next steps for AI consideration
 
-## Error Taxonomy
+## Current Implementation Status
 
-Errors follow a centralized taxonomy (`E_INPUT_NOT_FOUND`, `E_TRANSIENT_NET`, etc.) with:
-- Error class (user_error, retryable, infra_error)
-- Retryable flag
-- Suggested AI actions
+### Completed (MVP)
+- ✅ Core protocol library (`AcorTool` class)
+- ✅ Configuration system (YAML-based)
+- ✅ Tool discovery (automatic from directories)
+- ✅ CLI interface (tools as direct commands)
+- ✅ Runner with timeout handling
+- ✅ Native commands (status)
+- ✅ Example tools (file_processor)
+- ✅ Development scripts (install.sh, reload.sh, install-dev.sh)
+- ✅ Version management (semantic versioning)
 
-## Implementation Milestones
-
-1. **Core Foundation**: Extract runner, create protocol library
-2. **Configuration & Discovery**: Config loader, tool discovery
-3. **CLI Interface**: Core commands (init, list, run, describe)
-4. **Multi-Language**: Bash and Node.js protocol libraries
-5. **Advanced Features**: Checkpoints, security, observability
-6. **Testing & Documentation**: Test suite, user guides
-7. **Packaging**: PyPI distribution
+### Future Enhancements
+- Multi-language support (Bash, Node.js)
+- Advanced error taxonomy
+- Security sandboxing
+- Tool manifests
+- PyPI distribution
 
 ## Important Design Decisions
 
@@ -101,17 +109,20 @@ Errors follow a centralized taxonomy (`E_INPUT_NOT_FOUND`, `E_TRANSIENT_NET`, et
 - **Protocol Version**: Currently v1, with version negotiation support
 - **Python 3.8+**: For maximum compatibility
 
-## Working with the Specification
+## Working with the MVP Documentation
 
-The specification in `docs/spec/ai-cli-orchestration-pattern.md` is the source of truth. When implementing:
-1. Extract code sections preserving the JSONL protocol exactly
-2. Adapt hardcoded paths to use configuration
-3. Maintain backward compatibility with the embedded pattern
-4. Tools following the spec should work without modification
+The MVP implementation focuses on:
+1. Core conversation protocol (`docs/mvp/conversation-protocol.md`)
+2. Library specification (`docs/mvp/library-spec.md`)
+3. Configuration examples (`docs/mvp/mvp-configuration.md`)
+4. Phased implementation approach per the MVP roadmap
 
 ## Development Files
 
-- `docs/dev/project-plan.md`: Vision and architecture overview
-- `docs/dev/implementation-roadmap.md`: Detailed task breakdown
-- `docs/dev/technical-design.md`: Component specifications and APIs
-- `docs/dev/configuration-examples.md`: Configuration patterns and examples
+All current development documentation is in `docs/mvp/`:
+- `docs/mvp/mvp-roadmap.md`: Phased implementation approach
+- `docs/mvp/mvp-technical-design.md`: MVP component specifications
+- `docs/mvp/conversation-protocol.md`: Core JSONL protocol definition
+- `docs/mvp/library-spec.md`: Library implementation details
+- `docs/mvp/mvp-configuration.md`: Configuration patterns
+- `docs/mvp/example-interaction.md`: Example AI-tool interactions

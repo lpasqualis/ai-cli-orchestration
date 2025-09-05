@@ -1,0 +1,15 @@
+This is a sample file for testing the ACOR file processor tool.
+It contains multiple lines of text to demonstrate the tool's capabilities.
+
+The ACOR (AI-CLI Orchestration Runner) enables AI agents to orchestrate
+CLI tools through a structured conversational protocol using Markdown.
+
+Key features include:
+- Progress tracking
+- Error handling
+- Structured output
+- AI directives
+- Suggestions for next steps
+
+This file can be used to test the example tool with the command:
+acor file_processor examples/sample.txt

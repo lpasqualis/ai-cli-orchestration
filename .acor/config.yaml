@@ -1,0 +1,14 @@
+# ACOR Configuration File
+
+# Protocol version
+version: "1"
+
+# Directories to search for tools
+# Tools are discovered as subdirectories containing cli.py, main.py, or tool.py
+tools_dirs:
+  - ".acor/tools"      # Project-specific tools
+  - "tools"            # Alternative tools directory
+  - "examples/tools"   # Example tools for testing
+
+# Tool execution timeout in seconds
+timeout: 120
