@@ -22,7 +22,7 @@ source venv/bin/activate    # Activate environment
 From your other project:
 ```bash
 cd ~/my-project
-~/ai-cli-orchestration/install-dev.sh --venv
+~/acor-cli/install-dev.sh --venv
 ```
 
 This links to ACOR source - changes are immediate, no reinstall needed.
@@ -30,13 +30,13 @@ This links to ACOR source - changes are immediate, no reinstall needed.
 ### Method 2: Direct Execution
 ```bash
 # Use ACOR directly without installing
-~/ai-cli-orchestration/venv/bin/acor status
+~/acor-cli/venv/bin/acor status
 ```
 
 ## Project Structure
 
 ```
-ai-cli-orchestration/
+acor-cli/
 ├── src/acor/           # Core library
 │   ├── cli.py          # Command-line interface
 │   ├── conversation.py # Protocol for AI communication
@@ -107,7 +107,7 @@ acor file_processor examples/sample.txt
 **Test in another project:**
 ```bash
 cd ~/other-project
-~/ai-cli-orchestration/install-dev.sh
+~/acor-cli/install-dev.sh
 acor status  # Uses development version
 ```
 

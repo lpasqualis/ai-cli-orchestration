@@ -181,5 +181,5 @@ $RECYCLE.BIN/
 .nfs*
 
 # Project specific workspace
-ai-cli-orchestration.code-workspace
+acor-cli.code-workspace
 *.local

@@ -11,7 +11,7 @@ setup(
     description="AI-CLI Orchestration Runner - Enable AI agents to orchestrate CLI tools",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/ai-cli-orchestration",
+    url="https://github.com/yourusername/acor-cli",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     classifiers=[

@@ -11,7 +11,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # Default ACOR location (update this to your ACOR development path)
-DEFAULT_ACOR_DIR="/Users/lpasqualis/Dropbox/prj/ai-cli-orchestration"
+DEFAULT_ACOR_DIR="/Users/lpasqualis/Dropbox/prj/acor-cli"
 
 echo -e "${GREEN}ACOR Development Linker${NC}"
 echo "======================="
@@ -25,10 +25,10 @@ if [ ! -d "$ACOR_DIR" ]; then
     echo -e "${RED}Error: ACOR directory not found at: $ACOR_DIR${NC}"
     echo ""
     echo "Please specify the correct path:"
-    echo "  $0 /path/to/ai-cli-orchestration"
+    echo "  $0 /path/to/acor-cli"
     echo ""
     echo "Or set the ACOR_DEV_PATH environment variable:"
-    echo "  export ACOR_DEV_PATH=/path/to/ai-cli-orchestration"
+    echo "  export ACOR_DEV_PATH=/path/to/acor-cli"
     exit 1
 fi
 

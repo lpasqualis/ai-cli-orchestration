@@ -1,6 +1,20 @@
 # ACOR - AI-CLI Orchestration Runner
 
-Enable AI agents to orchestrate CLI tools through structured conversational protocol.
+Enable AI agents to orchestrate CLI tools through structured conversational protocol, combining AI's intelligence with the reliability of deterministic tools.
+
+## Why ACOR?
+
+Building AI systems that need to perform real-world tasks? ACOR solves the fundamental challenge of AI-tool integration:
+
+- **AI excels at understanding** intent, context, and making decisions
+- **CLI tools excel at execution** with deterministic, reliable operations
+- **ACOR bridges the gap** with a structured conversation protocol that lets AI and tools work together seamlessly
+
+### Perfect for:
+- 🤖 **Agentic Systems** - Building AI agents that need to manipulate files, run builds, or execute workflows
+- 🔧 **Tool Integration** - Wrapping existing CLI tools for AI consumption without rewriting them
+- 📊 **Data Processing** - AI-guided data pipelines with deterministic transformations
+- 🚀 **Automation** - Complex workflows where AI makes decisions and tools execute them
 
 ## Features
 
@@ -24,18 +38,32 @@ pip install -e .
 
 ## Quick Start
 
+### 1. See it in action
 ```bash
 # Activate environment
 source venv/bin/activate
 
-# Check status
+# Check installation
 acor status
 
-# Run example tool
-acor file_processor examples/sample.txt
+# Try the example file processor
+echo "Hello ACOR!" > test.txt
+acor file_processor test.txt
+```
 
-# See all commands
-acor --help
+### 2. Create your first tool
+```python
+#!/usr/bin/env python3
+from acor import AcorTool
+
+with AcorTool("hello") as tool:
+    tool.output("Hello from my first ACOR tool!")
+    tool.suggestions(["Try adding parameters", "Add progress tracking"])
+```
+
+Save as `tools/hello/cli.py`, then run:
+```bash
+acor hello  # Your tool is instantly available!
 ```
 
 ## Configuration
@@ -88,7 +116,7 @@ See `examples/tools/file_processor/` for a complete example.
 ## Project Structure
 
 ```
-ai-cli-orchestration/
+acor-cli/
 ├── src/acor/         # Core library
 ├── tools/            # Native commands (status)
 ├── examples/         # Example tools
@@ -97,13 +125,50 @@ ai-cli-orchestration/
 └── .acor/           # Configuration
 ```
 
-## Development
+## Documentation
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for:
-- Development setup
-- Using ACOR in other projects  
-- Writing custom tools
-- Version management
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development setup and advanced usage
+- **[Protocol Specification](docs/mvp/conversation-protocol.md)** - Complete protocol reference
+- **[Library Documentation](docs/mvp/library-spec.md)** - API and library details
+- **[Example Interactions](docs/mvp/example-interaction.md)** - See the protocol in action
+- **[Configuration Guide](docs/mvp/mvp-configuration.md)** - Advanced configuration options
+
+## Real-World Example
+
+Imagine an AI agent that needs to process data files:
+
+```python
+# AI Agent: "Process all CSV files and generate summaries"
+# ACOR handles the orchestration:
+
+with AcorTool("csv-analyzer") as tool:
+    # AI understands the request
+    tool.input_needed("Which CSV files should I process?", 
+                     ["file_pattern", "output_format"])
+    
+    # Tool performs deterministic operations
+    for file in csv_files:
+        tool.progress(percent, f"Processing {file}")
+        result = process_csv(file)  # Your deterministic logic
+        tool.output(result)
+    
+    # AI gets structured feedback
+    tool.suggestions([
+        "Generate visualization from results",
+        "Export to different format",
+        "Run statistical analysis"
+    ])
+```
+
+The AI sees structured Markdown messages and can make intelligent decisions, while your tool handles the actual file operations reliably.
+
+## Contributing
+
+We welcome contributions! Please:
+1. Check existing [issues](https://github.com/lpasqualis/acor-cli/issues) first
+2. Follow the existing code style
+3. Add tests for new features
+4. Update documentation as needed
 
 ## License
 

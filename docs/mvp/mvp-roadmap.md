@@ -16,7 +16,7 @@ A working system where:
 ## MVP Project Structure
 
 ```
-ai-cli-orchestration/
+acor-cli/
 ├── src/
 │   └── acor/
 │       ├── __init__.py          # Package initialization
@@ -55,7 +55,7 @@ project/
 ## Phase 1: Extract Core Runner
 
 ### What
-Extract the working runner from `docs/spec/ai-cli-orchestration-pattern.md` and make it reusable.
+Extract the working runner from `docs/spec/acor-cli-pattern.md` and make it reusable.
 
 ### Implementation Details
 - Start with the runner code from lines 253-459 of the spec
