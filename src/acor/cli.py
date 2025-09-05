@@ -1,5 +1,6 @@
 """Command-line interface for ACOR"""
 
+import os
 import sys
 from pathlib import Path
 import click
@@ -8,13 +9,16 @@ from . import __version__
 from .config import load_config
 from .discovery import discover_tools
 from .runner import run_tool, validate_tool_path
+from .commands import status as status_command, new as new_command
+from .constants import ErrorCodes
+from .logging import setup_logging
 
 
 class AcorCLI(click.MultiCommand):
     """Dynamic command loader that discovers tools as commands"""
     
     # Native commands that ship with ACOR
-    NATIVE_COMMANDS = ['status']
+    NATIVE_COMMANDS = ['status', 'new']
     
     def __init__(self, config_path=None, **kwargs):
         super().__init__(**kwargs)
@@ -37,8 +41,10 @@ class AcorCLI(click.MultiCommand):
         return self._tools
     
     def list_commands(self, ctx):
-        """List all available tool commands"""
-        return sorted(self.tools.keys())
+        """List all available commands (built-in + discovered tools)"""
+        # Combine native commands with discovered tools
+        all_commands = set(self.NATIVE_COMMANDS) | set(self.tools.keys())
+        return sorted(all_commands)
     
     def format_commands(self, ctx, formatter):
         """Format the list of commands with categories"""
@@ -47,7 +53,12 @@ class AcorCLI(click.MultiCommand):
             cmd = self.get_command(ctx, subcommand)
             if cmd is None:
                 continue
-            commands.append((subcommand, cmd.help or ''))
+            # Get help text - built-in commands already have it
+            if hasattr(cmd, 'help'):
+                help_text = cmd.help or ''
+            else:
+                help_text = ''
+            commands.append((subcommand, help_text))
         
         if commands:
             # Separate native and tool commands
@@ -65,7 +76,15 @@ class AcorCLI(click.MultiCommand):
                     formatter.write_dl(tool_cmds)
     
     def get_command(self, ctx, name):
-        """Get a command for a specific tool"""
+        """Get a command for a specific tool or built-in command"""
+        
+        # Check if it's a built-in command
+        if name == 'status':
+            return status_command
+        elif name == 'new':
+            return new_command
+        
+        # Otherwise, check discovered tools
         if name not in self.tools:
             return None
         
@@ -87,7 +106,7 @@ class AcorCLI(click.MultiCommand):
             is_valid, error_msg = validate_tool_path(tool_path)
             if not is_valid:
                 click.echo(f"## Error: {error_msg}", err=True)
-                sys.exit(1)
+                sys.exit(ErrorCodes.VALIDATION_FAILED)
             
             # Run the tool
             result = run_tool(tool_path, args, config)
@@ -117,6 +136,12 @@ def main(ctx, config_path):
     
     Tools are discovered from configured directories and exposed as commands.
     """
+    # Initialize logging
+    log_level = os.environ.get('ACOR_LOG_LEVEL', 'WARNING')
+    log_file = os.environ.get('ACOR_LOG_FILE')
+    log_file_path = Path(log_file) if log_file else None
+    setup_logging(log_level=log_level, log_file=log_file_path)
+    
     # Store config path for the custom command class
     ctx.obj = AcorCLI(config_path=config_path)
 
