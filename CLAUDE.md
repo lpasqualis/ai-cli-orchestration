@@ -6,8 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is the ACOR (AI-CLI-Orchestration-Runner) project - a generic, reusable tool that implements the AI + CLI Orchestration Pattern. It enables any project to leverage AI-augmented systems where AI agents orchestrate deterministic CLI tools through a structured JSONL streaming protocol.
 
+This tool will be used by agentic engineers who are building agentic systems that require deterministic behavious to help the AI perform various tasks. 
+
 ## Core Directives
 - KEEP IT SIMPLE, do NOT build speculatively, more is not better!
+- When we are done with the development of a new feature or capability, make sure there are unit tests covering the new feature.
+- Keep the unit tests passing.
 
 ## Key Architecture Concepts
 
