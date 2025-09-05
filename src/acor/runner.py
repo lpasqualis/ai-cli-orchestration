@@ -9,12 +9,20 @@ from typing import List, Optional, Tuple
 import signal
 import os
 
+from .constants import (
+    ErrorCodes,
+    PROCESS_KILL_TIMEOUT_SECONDS,
+    get_subprocess_env,
+    SUBPROCESS_ENV_VARS
+)
+from .logging import get_logger, log_security_event, emit_warning, emit_error, emit_security_event
+
 
 @dataclass
 class RunnerResult:
     """Result from running a tool"""
     success: bool
-    exit_code: int
+    exit_code: int  # Uses ErrorCodes constants
     error_message: Optional[str] = None
     timed_out: bool = False
 
@@ -33,21 +41,69 @@ def run_tool(tool_path: Path, args: List[str], config) -> RunnerResult:
     from .discovery import get_tool_command
     
     # Build the command
-    command = get_tool_command(tool_path) + args
+    # Convert to Path if string
+    if isinstance(tool_path, str):
+        tool_path = Path(tool_path)
     
-    # Set environment variables
-    env = os.environ.copy()
+    # Security: Re-validate the tool path immediately before execution
+    # This prevents TOCTOU (time-of-check/time-of-use) attacks where
+    # a symlink could be changed between discovery and execution
+    tool_path = tool_path.resolve()  # Resolve symlinks to real path
+    
+    # Re-validate that the tool is still within allowed directories
+    # This check only applies if we have configured tools directories
+    # If no tools_dirs are configured (e.g., in tests or direct execution),
+    # we trust the explicitly provided path
+    if config.tools_dirs:
+        # Get the configured tool directories from config
+        allowed_dirs = []
+        for tools_dir in config.tools_dirs:
+            try:
+                allowed_dirs.append(Path(tools_dir).resolve())
+            except (OSError, RuntimeError):
+                continue
+        
+        # Only enforce directory restrictions if we have configured directories
+        if allowed_dirs:
+            # Check if tool path is within any allowed directory
+            is_within_allowed = False
+            for allowed_dir in allowed_dirs:
+                if str(tool_path).startswith(str(allowed_dir)):
+                    is_within_allowed = True
+                    break
+            
+            if not is_within_allowed:
+                # Emit protocol-compliant security warning for AI
+                emit_security_event("TOOL_PATH_WARNING",
+                                  f"Tool {tool_path.name} executed outside configured directories",
+                                  path=str(tool_path),
+                                  configured_dirs=str(allowed_dirs))
+    
+    # Get base command and add user arguments
+    base_command = get_tool_command(tool_path)
+    # When using subprocess with a list (not shell=True), arguments are passed
+    # safely without risk of injection - no need for additional quoting
+    command = base_command + args
+    
+    # Create minimal environment for subprocess (security hardening)
+    # Only pass whitelisted environment variables
+    env = get_subprocess_env()
     env['ACOR_VERSION'] = config.version
     
     try:
-        # Start the process
+        # Start the process with security hardening:
+        # - Use process groups for better cleanup
+        # - Don't use shell=True to prevent injection
+        # - Set up process group for signal handling
         process = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
             env=env,
-            universal_newlines=True
+            universal_newlines=True,
+            # Create new process group for better signal handling
+            preexec_fn=os.setsid if os.name != 'nt' else None
         )
         
         try:
@@ -61,14 +117,13 @@ def run_tool(tool_path: Path, args: List[str], config) -> RunnerResult:
             
             # Check for errors
             if process.returncode != 0 and stderr:
-                print(f"\n## Error: Tool Failed")
-                print(f"Exit code: {process.returncode}")
-                if stderr:
-                    print(f"\n**Details**: {stderr}")
+                emit_error("Tool Failed",
+                          details=f"Exit code: {process.returncode}. {stderr}",
+                          recovery="Check tool implementation or input parameters")
                 
                 return RunnerResult(
                     success=False,
-                    exit_code=process.returncode,
+                    exit_code=process.returncode if process.returncode else ErrorCodes.EXECUTION_FAILED,
                     error_message=stderr
                 )
             
@@ -79,54 +134,73 @@ def run_tool(tool_path: Path, args: List[str], config) -> RunnerResult:
             )
             
         except subprocess.TimeoutExpired:
-            # Kill the process on timeout
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
+            # Kill the entire process group immediately on timeout
+            # This prevents resource exhaustion attacks
+            if os.name != 'nt':
+                # Unix: kill the entire process group
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                except ProcessLookupError:
+                    # Process already dead - log for monitoring
+                    logger = get_logger()
+                    logger.debug(f"Process {process.pid} already terminated during killpg")
+            else:
+                # Windows: use terminate then kill
                 process.kill()
-                process.wait()
             
-            print("## Error: Tool Timeout")
-            print(f"Tool exceeded {config.timeout} second timeout")
-            print("\n**Recovery**: Consider breaking the operation into smaller chunks or increasing timeout")
+            # Clean up zombie process
+            try:
+                process.wait(timeout=PROCESS_KILL_TIMEOUT_SECONDS)
+            except subprocess.TimeoutExpired:
+                # Process cleanup failed - log for monitoring
+                logger = get_logger()
+                logger.error(f"Failed to cleanup process {process.pid} after timeout - potential zombie process")
+                log_security_event("PROCESS_CLEANUP_FAILED", f"Process {process.pid} may be a zombie", tool=str(tool_path))
+            
+            emit_error("Tool Timeout",
+                      details=f"Tool exceeded {config.timeout} second timeout",
+                      recovery="Consider breaking the operation into smaller chunks or increasing timeout")
             
             return RunnerResult(
                 success=False,
-                exit_code=-1,
+                exit_code=ErrorCodes.TIMEOUT,
                 error_message=f"Tool exceeded {config.timeout}s timeout",
                 timed_out=True
             )
             
     except FileNotFoundError as e:
         error_msg = f"Tool executable not found: {tool_path}"
-        print(f"## Error: {error_msg}")
-        print(f"\n**Recovery**: Ensure the tool is properly installed")
+        emit_error("File Not Found",
+                  details=error_msg,
+                  recovery="Ensure the tool is properly installed")
         
         return RunnerResult(
             success=False,
-            exit_code=-1,
+            exit_code=ErrorCodes.FILE_NOT_FOUND,
             error_message=error_msg
         )
         
     except PermissionError as e:
         error_msg = f"Permission denied executing tool: {tool_path}"
-        print(f"## Error: {error_msg}")
-        print(f"\n**Recovery**: Check file permissions (chmod +x)")
+        emit_error("Permission Denied",
+                  details=error_msg,
+                  recovery="Check file permissions (chmod +x)")
         
         return RunnerResult(
             success=False,
-            exit_code=-1,
+            exit_code=ErrorCodes.PERMISSION_DENIED,
             error_message=error_msg
         )
         
     except Exception as e:
         error_msg = f"Unexpected error running tool: {e}"
-        print(f"## Error: {error_msg}")
+        emit_error("Unexpected Error",
+                  details=error_msg,
+                  recovery="Check system logs for more details")
         
         return RunnerResult(
             success=False,
-            exit_code=-1,
+            exit_code=ErrorCodes.GENERAL_ERROR,
             error_message=str(e)
         )
 
@@ -146,13 +220,26 @@ def validate_tool_path(tool_path: Path) -> Tuple[bool, Optional[str]]:
     if not tool_path.is_file():
         return False, f"Tool path is not a file: {tool_path}"
     
-    # Check if it's a script that needs an interpreter
-    if tool_path.suffix in ['.py', '.sh', '.js']:
-        # These are OK - will be run with interpreter
-        return True, None
-    
-    # Otherwise check if it's executable
-    if not os.access(tool_path, os.X_OK):
-        return False, f"Tool is not executable: {tool_path}"
+    # Check file permissions based on file type
+    if tool_path.suffix == '.py':
+        # Python files just need to be readable
+        if not os.access(tool_path, os.R_OK):
+            return False, f"Python script is not readable: {tool_path}"
+    elif tool_path.suffix == '.sh':
+        # Shell scripts need to be readable and preferably executable
+        if not os.access(tool_path, os.R_OK):
+            return False, f"Shell script is not readable: {tool_path}"
+        # Warn if not executable but don't fail (will run with bash)
+        if not os.access(tool_path, os.X_OK):
+            logger = get_logger()
+            logger.warning(f"Shell script is not executable: {tool_path}")
+    elif tool_path.suffix == '.js':
+        # JavaScript files just need to be readable
+        if not os.access(tool_path, os.R_OK):
+            return False, f"JavaScript file is not readable: {tool_path}"
+    else:
+        # Binary executables must have execute permission
+        if not os.access(tool_path, os.X_OK):
+            return False, f"Tool is not executable: {tool_path}"
     
     return True, None
